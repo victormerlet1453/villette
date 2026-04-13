@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Parcours patrimonial – Parc de La Villette</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      background: #111;
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+    }
+
+    #map-container {
+      position: relative;
+      width: 100%;
+      height: 100%;
+    }
+
+    #carte {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      display: block;
+    }
+
+    /* Couche des marqueurs, superposée à l'image */
+    #markers-layer {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none; /* la couche elle-même ne capte rien */
+    }
+
+    .marker {
+      position: absolute;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: #CC2222;
+      color: #fff;
+      font-size: 12px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      /* translate(-50%,-50%) : le point d'ancrage est le centre du cercle */
+      transform: translate(-50%, -50%);
+      cursor: pointer;
+      pointer-events: all;
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.45);
+      z-index: 10;
+      user-select: none;
+    }
+
+    .marker:hover,
+    .marker.active {
+      transform: translate(-50%, -50%) scale(1.2);
+      box-shadow: 0 3px 12px rgba(0,0,0,0.55);
+    }
+
+    /* ── Popup ── */
+    .popup {
+      position: fixed;
+      width: 280px;
+      background: #fff;
+      border-radius: 8px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.28);
+      z-index: 200;
+      overflow: hidden;
+      display: none; /* géré par JS */
+    }
+
+    .popup-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 10px 10px 8px 12px;
+      border-bottom: 1px solid #eee;
+    }
+
+    .popup-title {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      flex: 1;
+      min-width: 0;
+    }
+
+    .popup-num {
+      flex-shrink: 0;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: #CC2222;
+      color: #fff;
+      font-size: 11px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-top: 1px;
+    }
+
+    .popup-nom {
+      font-size: 13px;
+      font-weight: 700;
+      color: #1a1a1a;
+      line-height: 1.35;
+    }
+
+    .popup-close {
+      flex-shrink: 0;
+      width: 22px;
+      height: 22px;
+      border: none;
+      background: none;
+      cursor: pointer;
+      font-size: 20px;
+      line-height: 1;
+      color: #999;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+      transition: color 0.1s;
+    }
+    .popup-close:hover { color: #333; }
+
+    /* ── Zone photo avec flèches ── */
+    .popup-photo-wrap {
+      position: relative;
+      width: 100%;
+      height: 160px;
+      background: #e5e5e5;
+      overflow: hidden;
+    }
+
+    .popup-photo {
+      width: 100%;
+      height: 160px;
+      object-fit: cover;
+      display: block;
+    }
+
+    /* Placeholder quand la photo est absente */
+    .popup-photo-missing {
+      width: 100%;
+      height: 160px;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background: #f0f0f0;
+      color: #bbb;
+      font-size: 11px;
+    }
+
+    .photo-arrow {
+      display: none; /* masqué si une seule photo */
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 28px;
+      height: 28px;
+      background: rgba(0,0,0,0.45);
+      color: #fff;
+      border: none;
+      border-radius: 50%;
+      font-size: 18px;
+      line-height: 1;
+      cursor: pointer;
+      align-items: center;
+      justify-content: center;
+      z-index: 5;
+      transition: background 0.15s;
+      padding: 0;
+    }
+    .photo-arrow:hover { background: rgba(0,0,0,0.7); }
+    .photo-arrow.visible { display: flex; }
+    .photo-prev { left: 6px; }
+    .photo-next { right: 6px; }
+
+    .photo-counter {
+      display: none;
+      position: absolute;
+      bottom: 6px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0,0,0,0.5);
+      color: #fff;
+      font-size: 10px;
+      padding: 2px 7px;
+      border-radius: 10px;
+    }
+    .photo-counter.visible { display: block; }
+
+    .popup-texte {
+      padding: 10px 12px 12px;
+      font-size: 12px;
+      line-height: 1.6;
+      color: #444;
+    }
+
+    /* ── Overlay transparent (fermeture au clic extérieur) ── */
+    #overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 150; /* entre les marqueurs (10) et la popup (200) */
+    }
+    #overlay.visible { display: block; }
+
+    /* ── Titre discret en haut ── */
+    #titre {
+      position: fixed;
+      top: 14px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0,0,0,0.55);
+      color: #fff;
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      padding: 6px 16px;
+      border-radius: 20px;
+      pointer-events: none;
+      z-index: 20;
+      white-space: nowrap;
+    }
+  </style>
+</head>
+<body>
+
+<div id="map-container">
+  <img id="carte" src="carte.jpg" alt="Carte du parcours – Parc de La Villette">
+  <div id="markers-layer"></div>
+</div>
+
+<div id="titre">Parcours patrimonial – Parc de La Villette</div>
+
+
+<!-- Overlay transparent pour fermer la popup au clic extérieur -->
+<div id="overlay"></div>
+
+<!-- Popup unique réutilisée pour toutes les étapes -->
+<div class="popup" id="popup">
+  <div class="popup-header">
+    <div class="popup-title">
+      <div class="popup-num" id="popup-num"></div>
+      <div class="popup-nom" id="popup-nom"></div>
+    </div>
+    <button class="popup-close" id="popup-close" aria-label="Fermer">×</button>
+  </div>
+  <div class="popup-photo-wrap">
+    <button class="photo-arrow photo-prev" id="photo-prev" aria-label="Photo précédente">&#8249;</button>
+    <img class="popup-photo" id="popup-photo" src="" alt="">
+    <div class="popup-photo-missing" id="popup-photo-missing">photo non disponible</div>
+    <button class="photo-arrow photo-next" id="photo-next" aria-label="Photo suivante">&#8250;</button>
+    <div class="photo-counter" id="photo-counter"></div>
+  </div>
+  <p class="popup-texte" id="popup-texte"></p>
+</div>
+
+<script>
+/* ================================================================
+   RATIO DE L'IMAGE SOURCE (carte.jpeg)
+   ─────────────────────────────────────────
+   IMAGE_WIDTH / IMAGE_HEIGHT servent uniquement à calculer le ratio
+   d'aspect de la carte, afin de gérer correctement les bandes vides
+   laissées par object-fit:contain (letterbox / pillarbox).
+   Remplacez-les par les dimensions réelles de carte.jpeg en pixels.
+   → Inkscape : Fichier > Propriétés du document (Ctrl+Shift+D)
+   → macOS    : clic-droit sur carte.jpeg > Lire les informations.
+   ================================================================ */
+
+const IMAGE_WIDTH  = 8266; // largeur réelle de carte.jpg en px
+const IMAGE_HEIGHT = 11692; // hauteur réelle de carte.jpg en px
+
+
+/* ================================================================
+   ÉTAPES DU PARCOURS
+   ─────────────────────────────────────────
+   x et y sont des POURCENTAGES (0–100) de la largeur et hauteur
+   de l'image source. Le code les convertit automatiquement en
+   pixels écran quelle que soit la taille de la fenêtre.
+
+   COMMENT OBTENIR CES POURCENTAGES DEPUIS INKSCAPE :
+   ─────────────────────────────────────────────────────
+   1. Ouvrez carte.jpeg dans Inkscape (Fichier > Ouvrir).
+   2. Vérifiez l'unité : Fichier > Propriétés du document
+      (Ctrl+Shift+D) > unité = px. Notez W et H de la page.
+   3. Activez l'outil Nœuds (N) ou Sélection (F1) et survolez
+      le point cible : X et Y s'affichent dans la barre d'état.
+   4. ⚠️  Axe Y inversé dans Inkscape : Inkscape mesure Y
+      depuis le BAS. Convertissez :
+        y_web = H − y_inkscape
+      Exemple : H=2480, y_inkscape=400 → y_web = 2080.
+   5. Calculez les pourcentages :
+        x_pct = (x_inkscape / W) × 100
+        y_pct = (y_web      / H) × 100
+   ================================================================ */
+
+const etapes = [
+  {
+    id: 1,
+    nom: "La Fontaine aux Lions et le parvis",
+    texte: "Pierre-Simon-Girard, 1811. Fontaine utilitaire initialement érigée sur la place du Château d'Eau, déplacée en 1869 au marché aux bestiaux pour abreuver le bétail. Classée MH en 1979. Cas exemplaire de conservation sélective : l'objet survit, son contexte a entièrement disparu.",
+    photos: ["photos/etape1.png", "photos/etape1b.png", "photos/etape1c.png"],
+    x: 70.6,
+    y: 76.4
+  },
+  {
+    id: 2,
+    nom: "La Grande Halle de La Villette",
+    texte: "Jules de Mérindol, 1867. Halle bovine du Second Empire, classée MH en 1979, reconvertie en salle polyvalente par Reichen & Robert, 1985. Référence doctrinale de la réhabilitation industrielle en France.",
+    photos: ["photos/etape2.png", "photos/etape2b.png", "photos/etape2c.jpg"],
+    x: 61.8,
+    y: 67.2
+  },
+  {
+    id: 3,
+    nom: "Le CNSMD",
+    texte: "Christian de Portzamparc, 1990. Premier équipement ex nihilo du site. Son architecte reçoit le Pritzker en 1994. Si le bâtiment reste à ce jour sans protection patrimoniale, il est labellisé ACR.",
+    photos: ["photos/etape3.jpg"],
+    x: 57.3,
+    y: 75
+  },
+  {
+    id: 4,
+    nom: "Les Folies & le système Tschumi",
+    texte: "Bernard Tschumi, 1985-1998. 26 pavillons rouges sur grille orthogonale. Valeur systémique : chaque folie ne vaut que dans l'ensemble. Plusieurs ont été dénaturées ou transformées ; aucune protection MH engagée à ce jour.",
+    photos: ["photos/etape4.png"],
+    x: 37.5,
+    y: 56.2
+  },
+  {
+    id: 5,
+    nom: "Le canal de l'Ourcq",
+    texte: "Pierre-Simon-Girard, 1804. Infrastructure napoléonienne qui conditionne toute l'histoire du site. Géré par VNF, il n'est signalé ni expliqué nulle part dans le parc.",
+    photos: ["photos/etape5.jpg", "photos/etape5b.png"],
+    x: 28.4,
+    y: 45.1
+  },
+  {
+    id: 6,
+    nom: "L'écluse du Pont de Flandre",
+    texte: "Ouvrage hydraulique du XIXe siècle, nœud des canaux de l'Ourcq, Saint-Denis et Saint-Martin. Toujours en activité (VNF). Support de la notion de stratigraphie urbaine et illustration de la gouvernance fragmentée du site entre plusieurs acteurs publics.",
+    photos: ["photos/etape6.jpg"],
+    x: 8.5,
+    y: 32.8
+  },
+  {
+    id: 7,
+    nom: "La Cité des Sciences et la Géode",
+    texte: "Adrien Fainsilber, 1985/1986. Géode : sphère de 36 m, fermée en 2019 et de nouveau ouverte, forte de modernisations. Cas emblématique d'obsolescence technologique mais reconnu pour sa portée novatrice par le label ACR.",
+    photos: ["photos/etape7.jpg"],
+    x: 37.6,
+    y: 23
+  },
+  {
+    id: 8,
+    nom: "Le Zénith",
+    texte: "Chaix & Morel, 1984. Salle de 6 300 places, conçue pour durer dix ans et toujours debout quarante ans plus tard. Survie par inertie fonctionnelle, non par décision patrimoniale. Aucune protection à ce jour.",
+    photos: ["photos/etape8.jpg"],
+    x: 74.9,
+    y: 35.7
+  },
+  {
+    id: 9,
+    nom: "La Philharmonie de Paris et la Cité de la musique",
+    texte: "Cité de la musique : Portzamparc, 1995. Labellisé ACR. Philharmonie : Jean Nouvel, 2015. Budget initial de 173 M€, final ~380 M€. Aucune protection patrimoniale.",
+    photos: ["photos/etape9.jpg"],
+    x: 85.2,
+    y: 63.1
+  }
+];
+
+
+/* ================================================================
+   POSITIONNEMENT RÉACTIF DES MARQUEURS
+   ─────────────────────────────────────────
+   object-fit:contain affiche l'image en entier dans le conteneur,
+   en laissant des bandes vides (letterbox ou pillarbox) si le ratio
+   fenêtre ≠ ratio image. getRenderedRect() calcule la zone réellement
+   occupée par l'image ; pctToScreen() convertit un point exprimé en
+   pourcentages (0–100) en coordonnées pixels écran.
+   ================================================================ */
+
+function getRenderedRect() {
+  const img = document.getElementById('carte');
+  const cW = img.clientWidth;
+  const cH = img.clientHeight;
+  const imgRatio = IMAGE_WIDTH / IMAGE_HEIGHT;
+  const conRatio = cW / cH;
+
+  let rW, rH, oX, oY;
+  if (imgRatio > conRatio) {
+    // image plus large que le conteneur → bandes haut et bas
+    rW = cW;
+    rH = cW / imgRatio;
+    oX = 0;
+    oY = (cH - rH) / 2;
+  } else {
+    // image plus haute → bandes gauche et droite
+    rH = cH;
+    rW = cH * imgRatio;
+    oX = (cW - rW) / 2;
+    oY = 0;
+  }
+  return { rW, rH, oX, oY };
+}
+
+/* Convertit des coordonnées en % (0-100) → pixels dans le viewport */
+function pctToScreen(xPct, yPct) {
+  const { rW, rH, oX, oY } = getRenderedRect();
+  return {
+    left: oX + (xPct / 100) * rW,
+    top:  oY + (yPct / 100) * rH
+  };
+}
+
+
+/* ================================================================
+   CRÉATION ET PLACEMENT DES MARQUEURS
+   ================================================================ */
+
+const markersLayer = document.getElementById('markers-layer');
+
+etapes.forEach(etape => {
+  const el = document.createElement('div');
+  el.className = 'marker';
+  el.textContent = etape.id;
+  el.dataset.id  = etape.id;
+  markersLayer.appendChild(el);
+
+  el.addEventListener('click', e => {
+    e.stopPropagation();
+    openPopup(etape, el);
+  });
+});
+
+function positionAllMarkers() {
+  document.querySelectorAll('.marker').forEach(el => {
+    const etape = etapes.find(e => e.id === +el.dataset.id);
+    if (!etape) return;
+    const { left, top } = pctToScreen(etape.x, etape.y);
+    el.style.left = left + 'px';
+    el.style.top  = top  + 'px';
+  });
+}
+
+
+/* ================================================================
+   POPUP : OUVERTURE
+   ================================================================ */
+
+const popup   = document.getElementById('popup');
+const overlay = document.getElementById('overlay');
+
+const photoEl   = document.getElementById('popup-photo');
+const missingEl = document.getElementById('popup-photo-missing');
+const prevBtn   = document.getElementById('photo-prev');
+const nextBtn   = document.getElementById('photo-next');
+const counterEl = document.getElementById('photo-counter');
+
+let currentPhotos = [];
+let currentPhotoIdx = 0;
+
+function showPhoto(idx) {
+  currentPhotoIdx = idx;
+  const src = currentPhotos[idx];
+  photoEl.style.display   = 'block';
+  missingEl.style.display = 'none';
+  photoEl.onerror = () => {
+    photoEl.style.display   = 'none';
+    missingEl.style.display = 'flex';
+  };
+  photoEl.src = src;
+
+  const multi = currentPhotos.length > 1;
+  prevBtn.classList.toggle('visible', multi);
+  nextBtn.classList.toggle('visible', multi);
+  counterEl.classList.toggle('visible', multi);
+  if (multi) counterEl.textContent = `${idx + 1} / ${currentPhotos.length}`;
+}
+
+prevBtn.addEventListener('click', e => {
+  e.stopPropagation();
+  showPhoto((currentPhotoIdx - 1 + currentPhotos.length) % currentPhotos.length);
+});
+nextBtn.addEventListener('click', e => {
+  e.stopPropagation();
+  showPhoto((currentPhotoIdx + 1) % currentPhotos.length);
+});
+
+function openPopup(etape, markerEl) {
+  document.getElementById('popup-num').textContent   = etape.id;
+  document.getElementById('popup-nom').textContent   = etape.nom;
+  document.getElementById('popup-texte').textContent = etape.texte;
+
+  currentPhotos = etape.photos || [];
+  showPhoto(0);
+  photoEl.alt = etape.nom;
+
+  document.querySelectorAll('.marker').forEach(m => m.classList.remove('active'));
+  markerEl.classList.add('active');
+
+  popup.style.visibility = 'hidden';
+  popup.style.display    = 'block';
+  positionPopup(markerEl);
+  popup.style.visibility = '';
+
+  overlay.classList.add('visible');
+}
+
+
+/* ================================================================
+   POPUP : POSITIONNEMENT AUTOMATIQUE
+   La popup évite de déborder des bords de la fenêtre.
+   Priorité de placement : droite du marqueur, sinon gauche,
+   avec centrage vertical sur le marqueur.
+   ================================================================ */
+
+function positionPopup(markerEl) {
+  const POPUP_W  = 280;
+  const POPUP_H  = popup.offsetHeight;
+  const MARGIN   = 12;
+  const rect     = markerEl.getBoundingClientRect();
+  const anchorX  = rect.left + rect.width  / 2;
+  const anchorY  = rect.top  + rect.height / 2;
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+
+  // Placement horizontal : droite en priorité, sinon gauche
+  let left;
+  const gapFromCenter = 18; // demi-diamètre du marqueur + petit écart
+  if (anchorX + gapFromCenter + POPUP_W + MARGIN <= vw) {
+    left = anchorX + gapFromCenter;
+  } else if (anchorX - gapFromCenter - POPUP_W - MARGIN >= 0) {
+    left = anchorX - gapFromCenter - POPUP_W;
+  } else {
+    // Repli centré
+    left = Math.max(MARGIN, Math.min(vw - POPUP_W - MARGIN, anchorX - POPUP_W / 2));
+  }
+
+  // Centrage vertical sur le marqueur, contraint dans la fenêtre
+  let top = anchorY - POPUP_H / 2;
+  top = Math.max(MARGIN, Math.min(vh - POPUP_H - MARGIN, top));
+
+  popup.style.left = left + 'px';
+  popup.style.top  = top  + 'px';
+}
+
+
+/* ================================================================
+   POPUP : FERMETURE
+   ================================================================ */
+
+function closePopup() {
+  popup.style.display = 'none';
+  overlay.classList.remove('visible');
+  document.querySelectorAll('.marker').forEach(m => m.classList.remove('active'));
+}
+
+document.getElementById('popup-close').addEventListener('click', closePopup);
+overlay.addEventListener('click', closePopup);
+
+// Empêcher un clic sur la popup de fermer via l'overlay
+popup.addEventListener('click', e => e.stopPropagation());
+
+
+/* ================================================================
+   RÉACTIVITÉ AU REDIMENSIONNEMENT DE LA FENÊTRE
+   ================================================================ */
+
+window.addEventListener('resize', () => {
+  positionAllMarkers();
+  if (popup.style.display === 'block') {
+    const active = document.querySelector('.marker.active');
+    if (active) positionPopup(active);
+  }
+});
+
+
+/* ================================================================
+   INITIALISATION
+   ================================================================ */
+
+// Attendre que l'image soit chargée pour positionner les marqueurs
+const carteImg = document.getElementById('carte');
+if (carteImg.complete && carteImg.naturalWidth > 0) {
+  positionAllMarkers();
+} else {
+  carteImg.addEventListener('load', positionAllMarkers);
+  // Fallback si load ne se déclenche pas (cache navigateur)
+  window.addEventListener('load', positionAllMarkers);
+}
+
+
+</script>
+
+</body>
+</html>
