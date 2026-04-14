@@ -329,108 +329,83 @@
       white-space: nowrap;
     }
 
-    /* ── Bouton Bibliographie ── */
-    #biblio-btn {
+    /* ── 1. Indicateur de chargement ── */
+    #loader {
       position: fixed;
-      bottom: 18px;
-      right: 18px;
-      background: rgba(0,0,0,0.6);
-      color: #fff;
-      font-size: 12px;
-      font-weight: 600;
-      letter-spacing: 0.04em;
-      padding: 7px 14px;
-      border-radius: 20px;
-      border: none;
-      cursor: pointer;
-      z-index: 50;
-      transition: background 0.15s;
-    }
-    #biblio-btn:hover { background: rgba(0,0,0,0.85); }
-
-    /* ── Panneau Bibliographie ── */
-    #biblio-panel {
-      position: fixed;
-      top: 0;
-      right: 0;
-      width: 340px;
-      height: 100%;
-      background: #fff;
-      box-shadow: -4px 0 24px rgba(0,0,0,0.2);
-      z-index: 300;
+      inset: 0;
+      background: #111;
       display: flex;
       flex-direction: column;
-      transform: translateX(100%);
-      transition: transform 0.3s cubic-bezier(0.32,0.72,0,1);
-      overflow: hidden;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      transition: opacity 0.5s;
     }
-    #biblio-panel.open { transform: translateX(0); }
+    #loader.hidden { opacity: 0; pointer-events: none; }
+    #loader-spinner {
+      width: 42px;
+      height: 42px;
+      border: 3px solid rgba(255,255,255,0.15);
+      border-top-color: #CC2222;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    #loader-text {
+      color: rgba(255,255,255,0.45);
+      font-size: 12px;
+      margin-top: 14px;
+      letter-spacing: 0.04em;
+    }
 
-    #biblio-header {
+    /* ── 2. Navigation étapes (pied de popup) ── */
+    .popup-nav {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 14px 16px;
-      border-bottom: 1px solid #eee;
-      flex-shrink: 0;
+      padding: 8px 10px;
+      border-top: 1px solid #eee;
+      background: #fafafa;
     }
-    #biblio-header h2 {
-      font-size: 14px;
-      font-weight: 700;
-      color: #1a1a1a;
-    }
-    #biblio-close {
+    .popup-nav button {
       background: none;
       border: none;
-      font-size: 22px;
-      color: #999;
       cursor: pointer;
-      line-height: 1;
-      padding: 0;
-    }
-    #biblio-close:hover { color: #333; }
-
-    #biblio-body {
-      overflow-y: auto;
-      padding: 16px;
-      flex: 1;
-    }
-    #biblio-body h3 {
       font-size: 11px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
+      font-weight: 600;
       color: #CC2222;
-      margin: 18px 0 8px;
+      padding: 4px 6px;
+      border-radius: 4px;
+      transition: background 0.1s;
     }
-    #biblio-body h3:first-child { margin-top: 0; }
-    #biblio-body ul {
-      list-style: none;
-      padding: 0;
+    .popup-nav button:hover { background: #f5e5e5; }
+    .popup-nav button:disabled { color: #ccc; cursor: default; background: none; }
+    .popup-nav-counter {
+      font-size: 11px;
+      color: #aaa;
     }
-    #biblio-body li {
-      font-size: 11.5px;
-      line-height: 1.6;
-      color: #444;
-      padding: 5px 0;
-      border-bottom: 1px solid #f2f2f2;
-    }
-    #biblio-body li:last-child { border-bottom: none; }
-    #biblio-body a {
-      color: #CC2222;
-      text-decoration: none;
-      word-break: break-all;
-    }
-    #biblio-body a:hover { text-decoration: underline; }
 
-    /* ── Overlay biblio ── */
-    #biblio-overlay {
-      display: none;
+    /* ── 3. Bouton plein écran ── */
+    #fullscreen-btn {
       position: fixed;
-      inset: 0;
-      z-index: 250;
+      bottom: 18px;
+      left: 18px;
+      width: 36px;
+      height: 36px;
+      background: rgba(0,0,0,0.6);
+      color: #fff;
+      border: none;
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 50;
+      transition: background 0.15s;
+      font-size: 15px;
     }
-    #biblio-overlay.visible { display: block; }
+    #fullscreen-btn:hover { background: rgba(0,0,0,0.85); }
+
 
     /* ══════════════════════════════════════════
        MODE MOBILE  (≤ 640 px)
@@ -491,21 +466,6 @@
         padding-bottom: 24px; /* espace sous le texte pour l'inertie */
       }
 
-      /* Panneau biblio pleine largeur sur mobile */
-      #biblio-panel {
-        width: 100%;
-        top: auto;
-        bottom: 0;
-        height: 80vh;
-        transform: translateY(100%);
-        border-radius: 16px 16px 0 0;
-        box-shadow: 0 -4px 24px rgba(0,0,0,0.2);
-      }
-      #biblio-panel.open { transform: translateY(0); }
-
-      /* Bouton plus discret en bas à droite */
-      #biblio-btn { bottom: 14px; right: 14px; }
-
       /* Overlay semi-transparent sur mobile */
       #overlay.visible {
         background: rgba(0,0,0,0.4);
@@ -530,72 +490,17 @@
   <div id="markers-layer"></div>
 </div>
 
+<!-- Indicateur de chargement -->
+<div id="loader">
+  <div id="loader-spinner"></div>
+  <div id="loader-text">Chargement de la carte…</div>
+</div>
+
 <div id="titre">Guide de visite – Parc de La Villette</div>
 
-<!-- Bouton bibliographie -->
-<button id="biblio-btn">Bibliographie</button>
+<!-- Plein écran -->
+<button id="fullscreen-btn" title="Plein écran">⛶</button>
 
-<!-- Overlay biblio -->
-<div id="biblio-overlay"></div>
-
-<!-- Panneau bibliographie -->
-<div id="biblio-panel">
-  <div id="biblio-header">
-    <h2>Bibliographie</h2>
-    <button id="biblio-close" aria-label="Fermer">×</button>
-  </div>
-  <div id="biblio-body">
-
-    <h3>Patrimoine urbain — Références théoriques</h3>
-    <ul>
-      <li>Choay, F. (1992). <em>L'allégorie du patrimoine</em>. Seuil.</li>
-      <li>Corboz, A. (1983). Le territoire comme palimpseste. <em>Diogène</em>, (121), 14–35.</li>
-      <li>Gravari-Barbas, M., &amp; Veschambre, V. (2003). Patrimoine : derrière l'idée de consensus, les enjeux d'appropriation de l'espace et des enjeux sociaux. In P. Bédard et al. (Dir.), <em>Géographies anglo-saxonnes. Tendances contemporaines</em>. Belin.</li>
-      <li>Poulot, D. (2001). <em>Patrimoine et musées : l'institution de la culture</em>. Hachette.</li>
-      <li>Riegl, A. (1984 [1903]). <em>Le culte moderne des monuments : sa nature, son origine</em> (D. Wieczorek, Trad.). Seuil.</li>
-    </ul>
-
-    <h3>Politique patrimoniale française</h3>
-    <ul>
-      <li>Nora, P. (Dir.). (1984–1992). <em>Les lieux de mémoire</em> (3 vol.). Gallimard.</li>
-      <li>Poirrier, P., &amp; Vadelorge, L. (Dir.). (2003). <em>Pour une histoire des politiques du patrimoine</em>. La Documentation française / Fondation Maison des sciences de l'homme.</li>
-    </ul>
-
-    <h3>Patrimoine industriel</h3>
-    <ul>
-      <li>Bergeron, L., &amp; Dorel-Ferré, G. (1996). <em>Le patrimoine industriel : un nouveau territoire</em>. Liris.</li>
-      <li>CILAC. (1982–). <em>L'archéologie industrielle en France</em> [Revue]. CILAC.</li>
-    </ul>
-
-    <h3>La Villette — Architecture et urbanisme</h3>
-    <ul>
-      <li>Derrida, J. (1987). Point de folie — maintenant l'architecture. In <em>Psyché. Inventions de l'autre</em>. Galilée.</li>
-      <li>Ferrier, J. (Dir.). (1989). <em>Architectures à Paris, 1979–1989</em>. Pavillon de l'Arsenal / Picard.</li>
-      <li>Tschumi, B. (1986). <em>La case vide : La Villette, 1985</em>. Architectural Association.</li>
-      <li>Tschumi, B. (1994). <em>Architecture and disjunction</em>. MIT Press.</li>
-    </ul>
-
-    <h3>La Villette — Politique culturelle et Grands Travaux</h3>
-    <ul>
-      <li>Biasini, É. (1995). <em>Grands Travaux : de l'Afrique au Louvre</em>. Odile Jacob.</li>
-      <li>Looseley, D. L. (1995). <em>The politics of fun : cultural policy and debate in contemporary France</em>. Berg.</li>
-      <li>Ory, P. (1989). <em>L'aventure culturelle française, 1945–1989</em>. Flammarion.</li>
-    </ul>
-
-    <h3>Portzamparc</h3>
-    <ul>
-      <li>Cohen, J.-L. (1993). Christian de Portzamparc. <em>L'Architecture d'Aujourd'hui</em>, (287).</li>
-      <li>Portzamparc, C. de. (1996). <em>Généalogie des formes</em>. Dis Voir.</li>
-    </ul>
-
-    <h3>Jean Nouvel et la Philharmonie</h3>
-    <ul>
-      <li>Chambre régionale des comptes d'Île-de-France. (2016). <em>La Philharmonie de Paris</em> [Rapport]. Cour des comptes. <a href="https://www.ccomptes.fr/fr/actualites/la-philharmonie-de-paris" target="_blank" rel="noopener">ccomptes.fr</a></li>
-      <li>Jodidio, P. (2009). <em>Jean Nouvel by Jean Nouvel : complete works 1970–2008</em>. Taschen.</li>
-    </ul>
-
-  </div>
-</div>
 
 
 <!-- Overlay transparent pour fermer la popup au clic extérieur -->
@@ -632,6 +537,11 @@
     <div class="photo-counter" id="photo-counter"></div>
   </div>
   <p class="popup-texte" id="popup-texte"></p>
+  <div class="popup-nav">
+    <button id="popup-prev-etape">← Précédent</button>
+    <span class="popup-nav-counter" id="popup-nav-counter"></span>
+    <button id="popup-next-etape">Suivant →</button>
+  </div>
 </div>
 
 <script>
@@ -880,7 +790,10 @@ nextBtn.addEventListener('click', e => {
 
 const isMobile = () => window.innerWidth <= 640;
 
-function openPopup(etape, markerEl) {
+function openPopup(etape, markerEl, reposition = true) {
+  currentEtapeIdx = etapes.findIndex(e => e.id === etape.id);
+  updateNav();
+
   document.getElementById('popup-num').textContent   = etape.id;
   document.getElementById('popup-nom').textContent   = etape.nom;
   document.getElementById('popup-texte').textContent = etape.texte;
@@ -911,10 +824,9 @@ function openPopup(etape, markerEl) {
   popup.style.display = 'block';
 
   if (isMobile()) {
-    // Drawer : slide depuis le bas
     popup.style.visibility = '';
     requestAnimationFrame(() => popup.classList.add('open'));
-  } else {
+  } else if (reposition) {
     popup.style.visibility = 'hidden';
     positionPopup(markerEl);
     popup.style.visibility = '';
@@ -1088,28 +1000,78 @@ window.addEventListener('resize', () => {
 
 
 /* ================================================================
-   BIBLIOGRAPHIE
+   1. INDICATEUR DE CHARGEMENT
    ================================================================ */
 
-const biblioPanel   = document.getElementById('biblio-panel');
-const biblioOverlay = document.getElementById('biblio-overlay');
+const loader  = document.getElementById('loader');
+const carteEl = document.getElementById('carte');
 
-function openBiblio() {
-  biblioPanel.classList.add('open');
-  biblioOverlay.classList.add('visible');
-}
-function closeBiblio() {
-  biblioPanel.classList.remove('open');
-  biblioOverlay.classList.remove('visible');
+function hideLoader() {
+  loader.classList.add('hidden');
+  setTimeout(() => { loader.style.display = 'none'; }, 500);
 }
 
-document.getElementById('biblio-btn').addEventListener('click', openBiblio);
-document.getElementById('biblio-close').addEventListener('click', closeBiblio);
-biblioOverlay.addEventListener('click', closeBiblio);
+if (carteEl.complete && carteEl.naturalWidth > 0) {
+  hideLoader();
+} else {
+  carteEl.addEventListener('load',  hideLoader);
+  carteEl.addEventListener('error', hideLoader);
+}
 
-document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') closeBiblio();
+
+/* ================================================================
+   2. NAVIGATION ÉTAPES (PRÉCÉDENT / SUIVANT)
+   ================================================================ */
+
+let currentEtapeIdx = 0;
+
+function updateNav() {
+  document.getElementById('popup-prev-etape').disabled = currentEtapeIdx === 0;
+  document.getElementById('popup-next-etape').disabled = currentEtapeIdx === etapes.length - 1;
+  document.getElementById('popup-nav-counter').textContent =
+    `${currentEtapeIdx + 1} / ${etapes.length}`;
+}
+
+document.getElementById('popup-prev-etape').addEventListener('click', e => {
+  e.stopPropagation();
+  if (currentEtapeIdx > 0) {
+    currentEtapeIdx--;
+    const etape  = etapes[currentEtapeIdx];
+    const marker = document.querySelector(`.marker[data-id="${etape.id}"]`);
+    openPopup(etape, marker, false);
+  }
 });
+
+document.getElementById('popup-next-etape').addEventListener('click', e => {
+  e.stopPropagation();
+  if (currentEtapeIdx < etapes.length - 1) {
+    currentEtapeIdx++;
+    const etape  = etapes[currentEtapeIdx];
+    const marker = document.querySelector(`.marker[data-id="${etape.id}"]`);
+    openPopup(etape, marker, false);
+  }
+});
+
+
+/* ================================================================
+   3. MODE PLEIN ÉCRAN
+   ================================================================ */
+
+const fsBtn = document.getElementById('fullscreen-btn');
+
+fsBtn.addEventListener('click', () => {
+  if (!document.fullscreenElement) {
+    document.documentElement.requestFullscreen().catch(() => {});
+  } else {
+    document.exitFullscreen().catch(() => {});
+  }
+});
+
+document.addEventListener('fullscreenchange', () => {
+  fsBtn.textContent = document.fullscreenElement ? '✕' : '⛶';
+  fsBtn.title       = document.fullscreenElement ? 'Quitter le plein écran' : 'Plein écran';
+});
+
 
 
 /* ================================================================
